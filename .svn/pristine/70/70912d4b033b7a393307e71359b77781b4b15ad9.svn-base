@@ -1,0 +1,19 @@
+<?php
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Wx extends CI_Controller {
+
+	public function index()
+	{
+
+		$option = array(
+			'token' => 'ceshitoken',
+			'appid' => 'wx0cfc2cfe995d1ddb',
+			'appsecret' => 'd4624c36b6795d1d99dcf0547af5443d',
+		);
+		$this->load->library('wechat',$option);
+		$data = $this->wechat->getRevData();
+		log_message('debug', var_export($data,true));
+	}
+
+}

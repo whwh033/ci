@@ -1,0 +1,161 @@
+<?php
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Wx extends CI_Controller {
+
+	public function index()
+	{
+		$this->load->library('wechat');
+		$wx = $this->wechat;
+		$data = $wx->getRev();
+		$type = $data->getRevType();
+		log_message('error', var_export($data,true));
+		switch($type) {
+			case Wechat::MSGTYPE_TEXT:
+				$data->text("hello, I'm wechat123123123")->reply();
+				exit;
+				break;
+			case Wechat::MSGTYPE_EVENT:
+				break;
+			case Wechat::MSGTYPE_IMAGE:
+				break;
+			default:
+				$data->text("help info")->reply();
+		}
+	}
+
+	public function getTemp(){
+		$url = "https://api.weixin.qq.com/cgi-bin/template/get_all_private_template?access_token=".$this->getAccessToken();
+		$ret = file_get_contents($url);
+//		$data = array(
+//			'template_id_short' => 'b_hQIynOFbeLinsslrzcOwXGB3mYgZ3kImCspIoc4z4',
+//		);
+//		$ret = $this->vCurlPost($url,$data);
+		print_r(json_decode($ret, true));
+
+	}
+
+	public function setTempList(){
+		$this->load->library('redisdb',array('key' => 'quan'));
+		$redis = $this->redisdb;
+		$data = array(
+			'touser' => 'oQL2jvzN9KjWnD1-tEHkbU0s7G0c',
+			'template_id' => '6Cg5WBmUSAK3uP1UdBqsG3fPjDQiS7KRDffEuiCS_5w',
+			'url' => 'http://baidu.com',
+			'title' => '123123',
+			'data' => array(
+				'name' => array(
+					'value' => '测试',
+					'color' => '#173177',
+				),
+				"remark" => array(
+					'value' => "测试111\n欢迎购买!",
+					'color' => "#173177",
+				),
+
+			),
+		);
+		$redis->lPush("wx_temp_list",$data);
+	}
+
+
+
+
+	public function send(){
+		$this->load->library('redisdb',array('key' => 'quan'));
+		$redis = $this->redisdb;
+		while(true){
+			$data = $redis->rPop("wx_temp_list");
+			if($data){
+				$url = "https://api.weixin.qq.com/cgi-bin/message/template/send?access_token=".$redis->get("token");
+				$ret = $this->vCurlPost($url, json_encode($data,JSON_UNESCAPED_UNICODE));
+				log_message('error', "wx_temp_list".$ret);
+			}else{
+				sleep(5);
+			}
+		}
+
+	}
+
+
+	public function getAccessToken(){
+		$params = array('key' => 'quan');
+		$this->load->library('redisdb',$params);
+		$token = $this->redisdb->get("token");
+		if($token){
+			return $token;
+		}
+		return '';
+	}
+	
+	function getToken(){
+		$this->config->load('redis', TRUE);
+		$params = array('key' => 'quan');
+		$this->load->library('redisdb',$params);
+		$wxConfig = $this->config->item('redis')['wx'];
+		$accessTokenUrl = "https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid={$wxConfig['appid']}&secret=".$wxConfig['appsecret'];
+		$accessToken = json_decode(file_get_contents($accessTokenUrl), true);
+		if(isset($accessToken['errcode']) && $accessToken['errcode']){
+			return $accessToken['errcode'];
+		}
+		$key = "token";
+		$this->redisdb->set($key,$accessToken['access_token']);
+		return $accessToken['access_token'];
+	}
+
+	function vCurlPost($url, $data){
+		$ch = curl_init();
+		curl_setopt($ch, CURLOPT_URL, $url);
+		curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+		curl_setopt($ch, CURLOPT_POST, 1);
+		curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
+		$output = curl_exec($ch);
+		curl_close($ch);
+		return $output;
+	}
+
+	public function sms(){
+		$params = array('key' => 'sms');
+		$this->load->library('redisdb',$params);
+		$redis = $this->redisdb;
+		$key = "send_sms_list";
+		$data = array(
+			'title' => '注册',
+			'code' => 111111,
+			'mobile' => '18916053597',
+			'temp_id' => 'SMS_5445049',
+		);
+		$redis->lPush($key, $data);
+	}
+
+
+	public function send_sms(){
+		require_once dirname(dirname(__FILE__)).'/libraries'.'/Taobao'.'/TopSdk.php';
+		$c = new TopClient;
+		$this->config->load('sms', TRUE);
+		$params = array('key' => 'sms');
+		$this->load->library('redisdb',$params);
+		$redis = $this->redisdb;
+		$config = $this->config->item('sms');
+		$c->appkey = $config['appkey'];
+		$c->secretKey = $config['secretKey'];
+		$req = new AlibabaAliqinFcSmsNumSendRequest;
+		$req->setSmsType("normal");
+
+		while(true){
+			$data = $redis->rPop("send_sms_list");
+			if($data){
+				$req->setSmsFreeSignName($data['title']);
+				$req->setSmsParam("{\"code\":\"{$data['code']}\",\"product\":\"施意网\"}");
+				$req->setRecNum($data['mobile']);
+				$req->setSmsTemplateCode($data['temp_id']);
+				$ret = $c->execute($req);
+				log_message('error', "send_sms_list".json_encode($ret));
+			}else{
+				sleep(5);
+			}
+		}
+	}
+
+
+}

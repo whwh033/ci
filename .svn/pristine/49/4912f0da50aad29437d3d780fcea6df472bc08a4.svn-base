@@ -1,0 +1,121 @@
+<?php
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Wx extends CI_Controller {
+
+	public function index()
+	{
+		$this->load->library('wechat');
+		$wx = $this->wechat;
+		$data = $wx->getRev();
+		$type = $data->getRevType();
+		switch($type) {
+			case Wechat::MSGTYPE_TEXT:
+				$data->text("hello, I'm wechat")->reply();
+				exit;
+				break;
+			case Wechat::MSGTYPE_EVENT:
+				break;
+			case Wechat::MSGTYPE_IMAGE:
+				break;
+			default:
+				$data->text("help info")->reply();
+		}
+		log_message('info', var_export($data,true));
+	}
+
+	public function setH(){
+		$token = "1c7E93EKeLSgxmsz_Ye1jdVudKgTaJhaIQhMLuI77_bPoJboy_a4bN6qoqhIpB7Un9wF2pN30eubpdQElpuMStSigM7ciwgxsPQalVJUN1At-gr8xWt_HklEhHSruRYhAIXgAIATBQ";
+		$url = "https://api.weixin.qq.com/cgi-bin/template/api_set_industry?access_token=".$token;
+		$data = array(
+			'industry_id1' => '13',
+			'industry_id2' => '1',
+		);
+		$data = json_encode($data);
+		$ret = $this->vCurlPost($url, $data);
+		echo $data;
+		var_dump($ret);
+	}
+
+	public function getTemp(){
+		$token = "1c7E93EKeLSgxmsz_Ye1jdVudKgTaJhaIQhMLuI77_bPoJboy_a4bN6qoqhIpB7Un9wF2pN30eubpdQElpuMStSigM7ciwgxsPQalVJUN1At-gr8xWt_HklEhHSruRYhAIXgAIATBQ";
+		$url = "https://api.weixin.qq.com/cgi-bin/template/get_all_private_template?access_token=".$token;
+		$ret = file_get_contents($url);
+//		$data = array(
+//			'template_id_short' => 'b_hQIynOFbeLinsslrzcOwXGB3mYgZ3kImCspIoc4z4',
+//		);
+//		$ret = $this->vCurlPost($url,$data);
+		print_r(json_decode($ret, true));
+
+	}
+
+	public function send(){
+		$token = "1c7E93EKeLSgxmsz_Ye1jdVudKgTaJhaIQhMLuI77_bPoJboy_a4bN6qoqhIpB7Un9wF2pN30eubpdQElpuMStSigM7ciwgxsPQalVJUN1At-gr8xWt_HklEhHSruRYhAIXgAIATBQ";
+		$url = "https://api.weixin.qq.com/cgi-bin/message/template/send?access_token=".$token;
+		$data = array(
+			'touser' => 'oP-7awqzTp8krzR5w9vBehR-qVeA',
+			'template_id' => 'b_hQIynOFbeLinsslrzcOwXGB3mYgZ3kImCspIoc4z4',
+			'url' => 'http://baidu.com',
+			'data' => array(
+				'first' => array(
+					'value' => '恭喜',
+					'color' => '#173177',
+				),
+				"keynote1" => array(
+					"value" => "巧克力",
+					"color"  => "#173177"
+				),
+				"keynote2" => array(
+					"value" => "巧克力",
+					"color"  => "#173177"
+				),
+				"keynote3" => array(
+					"value" => "巧克力",
+					"color"  => "#173177"
+				),
+				"remark" => array(
+					"value" => "巧克力",
+					"color"  => "#173177"
+				),
+			),
+		);
+		echo json_encode($data);
+		$ret = $this->vCurlPost($url, json_encode($data));
+		var_dump(json_decode($ret,true));
+	}
+
+
+	public function getAccessToken(){
+		$this->config->load('redis', TRUE);
+		$wxConfig = $this->config->item('redis')['wx'];
+		$accessTokenUrl = "https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid={$wxConfig['appid']}&secret=".$wxConfig['appsecret'];
+		$accessToken = json_decode(file_get_contents($accessTokenUrl), true);
+		if(isset($accessToken['errcode']) && $accessToken['errcode']){
+			return $accessToken['errcode'];
+		}
+		$token = $accessToken['access_token'];
+		echo $token;
+	}
+
+	public function redisTest(){
+		$this->load->library('redisdb','chats');
+		$data = array('aa' => '123123', 'bbb' => '1241241');
+		$this->redisdb->hSet("test","123123",$data);
+	}
+
+
+	function vCurlPost($url, $data){
+		$ch = curl_init();
+		curl_setopt($ch, CURLOPT_URL, $url);
+		curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+		// post数据
+		curl_setopt($ch, CURLOPT_POST, 1);
+		// post的变量
+		curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
+		$output = curl_exec($ch);
+		curl_close($ch);
+		return $output;
+	}
+
+
+}

@@ -1,0 +1,21 @@
+<?php
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Wx extends CI_Controller {
+
+	public function index()
+	{
+		$this->load->driver('cache');
+		$this->cache->redis->save('foo', 'bar', 10);
+
+//		$option = array(
+//			'appid' => '',
+//			'appsecret' => '',
+//		);
+//		$this->load->library('wechat',$option);
+
+
+
+	}
+
+}

@@ -1,0 +1,18 @@
+<?php
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Alipay extends CI_Controller {
+
+	public function index(){
+		$this->load->view('welcome_message');
+	}
+
+	public function pay(){
+		$dir = dirname(dirname(__FILE__))."/libraries/Alipay/";
+		require_once $dir."config.php";
+		require_once $dir."Submit.php";
+		$this->load->view('pay');
+	}
+
+
+}
